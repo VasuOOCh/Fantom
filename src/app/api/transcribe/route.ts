@@ -1,9 +1,9 @@
 import axios from "axios";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import fetch from 'node-fetch';
 import ollama from 'ollama';
 
-export async function POST(request: NextResponse) {
+export async function POST(request: NextRequest) {
     try {
         const formData = await request.formData();
         const history = JSON.parse(formData.get('history') as string);
@@ -37,6 +37,7 @@ Maintain a friendly, professional tone. Begin with a soft opener like "Can you t
 
         const encoder = new TextEncoder();
 
+        // See the articles.md for More Info about Streams
         const streamBody = new ReadableStream({
             async start(controller) {
                 try {
@@ -53,15 +54,18 @@ Maintain a friendly, professional tone. Begin with a soft opener like "Can you t
                         stream: true
                     })
 
+                    // ChatRes is also a stream so we can use for..await..of loop
+
                     for await (const chunk of chatRes) {
-                        const payload = `agent: ${JSON.stringify(chunk)}\n\n`;
+                        // chunk is an object : {..., message : {content : "sample" } ,,,}
+                        const payload = `assistant: ${JSON.stringify(chunk)}\n\n`;
                         controller.enqueue(encoder.encode(payload));
                     }
 
                     controller.close();
 
                 } catch (error) {
-                    controller.enqueue(encoder.encode(`agent: ${JSON.stringify({ error: "Stream error" })}\n\n`));
+                    controller.enqueue(encoder.encode(`assistant: ${JSON.stringify({ error: "Stream error" })}\n\n`));
                     controller.close();
                 }
             }
@@ -78,8 +82,18 @@ Maintain a friendly, professional tone. Begin with a soft opener like "Can you t
 
     } catch (error) {
         console.log(error);
+
+        // the bewlow .json() method Stringifies the JSON and automatically add the headers "Content-Type": "application/json"
         return Response.json({
             text: "Error in transciption"
         })
+
+        // You can use the below thing with new Constructor but then you have to manually Stringify the JSON object and app headers : 
+        // return new Response(JSON.stringify({ text: "Hello, world!" }), {
+        //     status: 200,
+        //     headers: {
+        //         "Content-Type": "application/json"
+        //     }
+        // });
     }
 }

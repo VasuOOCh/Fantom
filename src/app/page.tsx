@@ -1,6 +1,12 @@
 'use client'
 import Image from "next/image";
+import { NextResponse } from "next/server";
 import { useEffect, useRef, useState } from "react";
+
+type message = {
+  role : 'user' | 'assistant',
+  content : string
+}
 
 export default function Home() {
   // const [started, setStarted] = useState<boolean>(false);
@@ -53,10 +59,7 @@ export default function Home() {
   const audioChunks = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
   let stream = useRef<null | MediaStream>(null);
-
-  const [agentMsg, setAgentMsg] = useState<string[]>([]);
-  const [userMsg, setUserMsg] = useState<string[]>([]);
-  const [convo, setConvo] = useState<any[]>([]);
+  const [convo, setConvo] = useState<message[]>([]);
 
 
   const startRecording = async () => {
@@ -102,11 +105,13 @@ export default function Home() {
 
   function handleStreamingResponse(response: any) {
     return new Promise((resolve, reject) => {
-      const reader = response.body.getReader();
+      const reader = response.body!.getReader();
       let accumulatedContent = '';
 
+      // Refer to articles.md to get to know how to read streams :
+
       function read() {
-        reader.read().then(({ done, value }: { done: any, value: any }) => {
+        reader.read().then(({ done, value }: { done: boolean, value: any }) => {
           if (done) {
             resolve({ response: accumulatedContent });
             return;
@@ -116,9 +121,9 @@ export default function Home() {
           const lines = chunk.split('\n');
 
           lines.forEach(line => {
-            if (line.startsWith('agent: ')) {
+            if (line.startsWith('assistant: ')) {
               try {
-                const data = JSON.parse(line.substring(7));
+                const data = JSON.parse(line.substring(11));
                 if (data.message && data.message.content) {
                   accumulatedContent += data.message.content;
 

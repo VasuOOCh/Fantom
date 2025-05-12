@@ -1,0 +1,10 @@
+Install Mistral, Whisper by OpenAI locally on your PC
+
+1) Run ollama Mistral
+--> ollama run mistral
+
+2) Run the python server file of Whisper (Install the needed dependencies) | Run it in your local virtual python env
+--> uvicorn whisper-server:app --host 0.0.0.0 --port 8000
+
+3) Run the nextJS server
+--> npm run dev
