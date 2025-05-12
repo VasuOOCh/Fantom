@@ -52,7 +52,12 @@ export default function Home() {
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const audioChunks = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
-  let stream = useRef<null | MediaStream>(null)
+  let stream = useRef<null | MediaStream>(null);
+
+  const [agentMsg, setAgentMsg] = useState<string[]>([]);
+  const [userMsg, setUserMsg] = useState<string[]>([]);
+  const [convo, setConvo] = useState<any[]>([]);
+
 
   const startRecording = async () => {
     // first get the stream of audio data using navigator
@@ -83,22 +88,84 @@ export default function Home() {
       const audioBlob = new Blob(audioChunks.current, { type: "audio/webm" });
       const formData = new FormData();
       formData.append("audio", audioBlob, "audio.webm");
+      formData.append("history", JSON.stringify(convo));
 
-      const response = await fetch("http://localhost:8000/transcribe", {
+      const response = await fetch("http://localhost:3000/api/transcribe", {
         method: "POST",
         body: formData,
       });
 
-      const data = await response.json();
-      alert(`Transcription: ${data.text}`);
+      handleStreamingResponse(response)
     };
     setRecording(false);
   };
 
+  function handleStreamingResponse(response: any) {
+    return new Promise((resolve, reject) => {
+      const reader = response.body.getReader();
+      let accumulatedContent = '';
+
+      function read() {
+        reader.read().then(({ done, value }: { done: any, value: any }) => {
+          if (done) {
+            resolve({ response: accumulatedContent });
+            return;
+          }
+
+          const chunk = new TextDecoder("utf-8").decode(value);
+          const lines = chunk.split('\n');
+
+          lines.forEach(line => {
+            if (line.startsWith('agent: ')) {
+              try {
+                const data = JSON.parse(line.substring(7));
+                if (data.message && data.message.content) {
+                  accumulatedContent += data.message.content;
+
+                  setConvo((prev) => {
+                    let updated = [...prev];
+                    if(updated[updated.length - 1].role == "user") {
+                      return [...prev, {
+                        role: "assistant",
+                        content: accumulatedContent
+                      }]
+                    }else {
+                      updated[updated.length - 1].content = accumulatedContent;
+                      return updated;
+                    }
+                  })
+                  
+                }
+              } catch (error) {
+                console.error("Error parsing stream data:", error, line);
+              }
+            }
+            else if (line.startsWith('user: ')) {
+              const userData = JSON.parse(line.substring(6));
+              console.log(userData);
+              
+              setConvo((prev) => (
+                [...prev, {
+                  role: "user",
+                  content: userData
+                }]
+              ))
+
+            }
+          });
+
+          read();
+        }).catch(reject);
+      }
+
+      read();
+    });
+  }
+
   return (
     <div className="flex flex-col items-center">
       {/* Main interface */}
-      <div className="flex gap-4 m-8 w-full p-8">
+      <div className="flex gap-4 m-8 w-full p-8 items-center">
 
         <div className="flex flex-col gap-4">
           {/* For AI */}
@@ -115,8 +182,32 @@ export default function Home() {
         </div>
 
         {/* Conversation */}
-        <div className="ring-1 flex-1">
-          This is a sample Conversation.
+        <div className="ring-1 flex-1 overflow-y-scroll h-[700px]">
+          {
+            convo.map((convo, index) => (
+              <div key={index} className="p-4 border-b border-gray-300">
+                {/* User Message */}
+                {
+                  convo.role == "user" ? (
+                    <div className="text-right">
+                      <p className="inline-block bg-red-100 text-black px-4 py-2 rounded-lg max-w-[70%]">
+                        {convo.content}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-left mt-2">
+                      <p className="inline-block bg-blue-100 text-black px-4 py-2 rounded-lg max-w-[70%]">
+                        {convo.content}
+                      </p>
+                    </div>
+                  )
+                }
+
+
+              </div>
+            ))
+          }
+
         </div>
       </div>
 
