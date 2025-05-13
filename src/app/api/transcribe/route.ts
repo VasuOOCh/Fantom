@@ -82,10 +82,11 @@ Maintain a friendly, professional tone. Begin with a soft opener like "Can you t
 
     } catch (error) {
         console.log(error);
-
         // the bewlow .json() method Stringifies the JSON and automatically add the headers "Content-Type": "application/json"
         return Response.json({
             text: "Error in transciption"
+        }, {
+            status : 500
         })
 
         // You can use the below thing with new Constructor but then you have to manually Stringify the JSON object and app headers : 

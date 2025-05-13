@@ -1,5 +1,7 @@
 Info about media recording : "https://niteshgoyal27390.medium.com/exploring-the-power-of-mediarecorder-api-a-guide-with-example-959bd8848454"
 
+Streaming data : https://medium.com/@kusalkalingainfo/stream-audio-using-recordrtc-js-library-fe545c58d174
+
 ## Blob : 
 Defination : A Blob (Binary Large Object) is used to represent binary data, such as audio or video.
 Blob()
