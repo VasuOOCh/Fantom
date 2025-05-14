@@ -8,7 +8,7 @@ import RecordRTC, { StereoAudioRecorder } from "recordrtc"
 URL() constructor is a client feature. Therefore, somehow NextJS was still trying to render this code on the server.
 This is the reason I we are dynamically importing the component with ssr = false
 */
-const StreamMicrophone = dynamic(() => import('./components/streammicrophone'), {
+const StreamMicrophone = dynamic(() => import('../components/streammicrophone'), {
   ssr: false
 })
 
@@ -163,7 +163,7 @@ export default function Home() {
   }, [started]);
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center h-full">
       {/* Main interface */}
       <div className="flex gap-4 m-8 w-full p-8 items-center">
 

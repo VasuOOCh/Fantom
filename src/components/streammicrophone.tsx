@@ -10,8 +10,8 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
   const handleDataAvailable = (event: Blob) => {
     if (event.size > 0) {
       console.log('blob', event);
-      //Blobs, representing raw binary data, are often unsuitable for direct transmission over WebSockets, which primarily handle text-based data. Converting a Blob to 
-      // Base64 addresses this limitation by encoding the binary data into a text format, ensuring compatibility with WebSocket's text-based communication channel.
+        //Blobs, representing raw binary data, are often unsuitable for direct transmission over WebSockets, which primarily handle text-based data. Converting a Blob to 
+        // Base64 addresses this limitation by encoding the binary data into a text format, ensuring compatibility with WebSocket's text-based communication channel.
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Data = reader.result;
@@ -24,6 +24,13 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
       }
 
       reader.readAsDataURL(event)
+
+      /*
+        Reader.readAsDataURL takes in a Blob or File and reads it and when reading 
+        is complete loadend event is triggered and reader.result contains data
+        in form of data:URL
+        example of data:URL => 'data:audio/wav,<Base64 Encoded string>'
+      */
 
     }
   }

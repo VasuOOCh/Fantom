@@ -43,6 +43,7 @@ async function readData(url) {
       return;
     }
     // Otherwise do something here to process current chunk
+    // value is in Uint8Array
   }
 }
 

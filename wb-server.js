@@ -24,7 +24,6 @@ const runSoxCommand = (soxCommand) => {
 }
 
 const streamTTS = async (text, ws) => {
-    console.log("streaming tts audio");
     
     try {
         const res = await fetch(`http://localhost:5002/api/tts?text=${encodeURIComponent(text)}`, {
@@ -38,6 +37,12 @@ const streamTTS = async (text, ws) => {
         const reader = res.body.getReader();
         while(true) {
             const {value, done} = await reader.read();
+
+            /*
+                Value is Uint8Array which is a binary data representation of audio file
+                We have to send the audio file (i.e value) over web socket so first encode it to base64 
+                Uint8Array does not have a .toString('base64') method — only Node.js Buffer does.
+             */
             if(done) break;
             const base64Val = Buffer.from(value).toString('base64');
             ws.send(`tts_chunk: ${JSON.stringify(base64Val)}`)
@@ -65,9 +70,9 @@ wss.on('connection', (ws) => {
         const data = JSON.parse(message)
         // console.log(data);
         if (data.type == "start_audio") {
-            console.log("Streaming started");
+            console.log("Streaming of Client audio started");
         } else if (data.type == "stop_audio") {
-            console.log("Stopping streaming session");
+            console.log("Stopping cliient streaming session");
 
             //Temp directory creation:
             const tempDir = path.join(__dirname, "temp");
@@ -75,14 +80,12 @@ wss.on('connection', (ws) => {
                 fs.mkdirSync(tempDir);
             }
 
+            // Write the buffers in temp files
             ws.audioDataArray.forEach((buffer, index) => {
-                console.log(index);
-                const tempFilePath = path.join(tempDir, `chunk-${index++}.wav`);
+                const tempFilePath = path.join(tempDir, `chunk-${index}.wav`);
                 fs.writeFileSync(tempFilePath, buffer);
                 ws.tempFiles.push(tempFilePath);
             })
-
-            console.log(ws.tempFiles);
 
             // Concat the chunks
             const combinedFilePath = path.join(
@@ -96,7 +99,6 @@ wss.on('connection', (ws) => {
             await runSoxCommand(soxCommand);
             console.log(`Combined audio saved to ${combinedFilePath}`);
 
-
             // Clean up temporary files
             await Promise.all(
                 ws.tempFiles.map(async filePath => {
@@ -107,10 +109,19 @@ wss.on('connection', (ws) => {
                     }
                 })
             );
+            fs.unlinkSync(combinedFilePath);
 
             ws.audioDataArray = [];
             ws.tempFiles = [];
 
+            /*
+            fs.createReadStream is a method that creates a readable stream for a file. It reads the
+            file in chunks and emits them sequentially, which allows for handling large files
+            efficiently.
+
+            fs.readFile is a method that reads the entire contents of a file into memory. It is synchronous or asynchronous, depending on the function used (fs.readFileSync for synchronous or fs.readFile for asynchronous).
+
+             */
 
             const formData = new FormData();
             formData.append('audio', fs.createReadStream(combinedFilePath), {
@@ -120,7 +131,7 @@ wss.on('connection', (ws) => {
 
             const Whisper_res = await axios.post('http://localhost:8000/transcribe', formData)
             // res.data.text contains the transciption
-            console.log(Whisper_res.data.text);
+            // console.log(Whisper_res.data.text);
             ws.send(`user: ${JSON.stringify(Whisper_res.data.text)}`)
 
             const chatRes = await client.chat({
@@ -154,7 +165,18 @@ wss.on('connection', (ws) => {
 
         } else if (data.type == "stream_audio") {
             if (typeof data.audio_data == "string") {
+                // Generate the buffer from data.audio_data
                 const audioData = Buffer.from(data.audio_data.split(",")[1], "base64");
+                /* 
+                Buffer is save in RAM and used only in NodeJS
+
+                Blob is not used here it is HTML specific and is used to represent images/video 
+                (Blob can also be created in NodejS but not famous though !)
+
+                It is direct binary representation of data (eg .wav audio file)
+                You can save it as fs.writeFileSync('audio.wav', audioData); 
+                OR you can send it as Response
+                */
                 console.log(`Received audio data chunk of length: ${audioData.length}`);
                 ws.audioDataArray.push(audioData);
             } else {
