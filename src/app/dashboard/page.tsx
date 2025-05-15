@@ -172,7 +172,7 @@ const Dashboard = () => {
                 </section>
 
                 {/* Performance overview */}
-                <div className='w-[40%] flex flex-col gap-1'>
+                <div className='w-[40%] flex flex-col gap-2'>
                     <h1 className='text-2xl font-semibold'>Score and Rank</h1>
                     <Card>
                         <CardHeader>
