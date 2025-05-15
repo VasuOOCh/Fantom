@@ -152,9 +152,9 @@ export default function Home() {
 
     };
 
-    // if (started) {
+    if (started) {
     setup().catch((err) => console.error("Setup failed:", err));
-    // }
+    }
     audioContextRef.current = new (window.AudioContext)({ sampleRate: 16000 });
     audioContextRef.current.resume();
     return () => {

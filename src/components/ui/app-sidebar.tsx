@@ -1,7 +1,8 @@
 import React from 'react'
-import { Plus, GaugeIcon, Youtube, GalleryVerticalEnd, Files, Wrench } from 'lucide-react';
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './sidebar'
+import { Plus, GaugeIcon, Youtube, GalleryVerticalEnd, Files, Wrench, ChevronUp,UserRound, Settings, LogOut} from 'lucide-react';
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './sidebar'
 import { ModeToggle } from './theme-toggle';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
 
 const interviewMenu = [
     {
@@ -39,9 +40,15 @@ const AppSidebar = () => {
     return (
         <Sidebar>
             <SidebarHeader className='flex items-center flex-row justify-between'>
-                <h1>Interview app</h1>
-                {/* <Theme */}
-                <ModeToggle />
+                <SidebarMenu>
+                    <SidebarMenuItem >
+                        <a href="#" className='flex flex-row justify-between items-center'>
+                            <h1>Interview app</h1>
+                            {/* <Theme */}
+                            <ModeToggle />
+                        </a>
+                    </SidebarMenuItem>
+                </SidebarMenu>
             </SidebarHeader>
             <SidebarContent>
 
@@ -68,9 +75,9 @@ const AppSidebar = () => {
                             {
                                 interviewMenu.map((item, index) => (
                                     <SidebarMenuItem key={index}>
-                                        <SidebarMenuButton isActive={index == 0} asChild>
+                                        <SidebarMenuButton asChild>
                                             <a href={item.url} className='flex gap-4 items-center'>
-                                                <item.icon className='' />
+                                                <item.icon/>
                                                 <span>{item.title}</span>
                                             </a>
                                         </SidebarMenuButton>
@@ -88,7 +95,7 @@ const AppSidebar = () => {
                             {
                                 toolsMenu.map((item, index) => (
                                     <SidebarMenuItem key={index}>
-                                        <SidebarMenuButton isActive={index == 0} asChild>
+                                        <SidebarMenuButton asChild>
                                             <a href={item.url} className='flex gap-4 items-center'>
                                                 <item.icon className='' />
                                                 <span>{item.title}</span>
@@ -101,6 +108,36 @@ const AppSidebar = () => {
                     </SidebarGroupContent>
                 </SidebarGroup>
             </SidebarContent>
+
+            <SidebarFooter>
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <SidebarMenuButton>
+                                    <span>Vasu Choudhari</span>
+                                    <ChevronUp className="ml-auto" />
+                                </SidebarMenuButton>
+                            </DropdownMenuTrigger>
+
+                            <DropdownMenuContent className='w-full' side='top'>
+                                <DropdownMenuItem>
+                                    <UserRound />
+                                    <span>Account</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <Settings />
+                                    <span>Setting</span>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem>
+                                    <LogOut />
+                                    <span>Logout</span>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+            </SidebarFooter>
         </Sidebar>
     )
 }
