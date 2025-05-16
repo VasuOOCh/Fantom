@@ -90,7 +90,32 @@ export default function Home() {
           // The below code prevents duplication
           const lastMessage = prev[prev.length - 1];
           if (!lastMessage.content.includes(textChunk)) {
-            // Proper immutable update for appending
+            /*
+              ----------- What's happening below ---------
+              Source : GPT 4-o written in own language by VasuOOCh
+
+              if we do this :-
+              updated = [...prev]
+              updated[updated.length - 1] += textChunk
+              return updated
+
+              This peace of code doesnt allow react to re render the componenet !
+              Why ????
+
+              Before re rendering react checks : 
+              1) The returned reference was changed or not
+              --> Since we are creating a new array updated, so this check is passed
+              2) Checks element wise reference
+              --> We have changed the value of the last object in that array, but the refernce to last object is not changed
+              --> So react thinks that all the element have the same previous ref of 'prev'
+
+              ##### This above comparision is called react-Shallow comparision
+
+              In Our new code we are : (Below code)
+              1) Changing the whole returned reference (Which was also the above case)
+              2) Change the ref of last element by creating a new object rathan than just updating the existing ones
+              
+             */
             return prev.map((msg, index) => {
               if (index === prev.length - 1 && msg.role === "assistant") {
                 // Only modify the last assistant message
@@ -194,9 +219,6 @@ export default function Home() {
 
           {/* For user */}
           <div className="w-[300px] h-[300px] bg-red-300 flex items-center justify-center">
-            {/* <button onMouseUp={stopStreaming} onMouseDown={startStreaming} className="transition duration-200 ease-in-out w-[100px] h-[100px] relative active:scale-120">
-              <Image src={"/mic.png"} fill alt="mic" />
-            </button> */}
             <StreamMicrophone ws={ws} />
 
           </div>
