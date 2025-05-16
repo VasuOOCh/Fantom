@@ -24,36 +24,50 @@ const runSoxCommand = (soxCommand) => {
 }
 
 const streamTTS = async (text, ws) => {
-    
     try {
+        const payload = `assistant: ${JSON.stringify(text)}`;
         const res = await fetch(`http://localhost:5002/api/tts?text=${encodeURIComponent(text)}`, {
             method: 'GET',
-        })
+        });
 
-        if(!res.ok) throw new Error(error);
-        // ws.send(JSON.stringify({
-        //     type : 'tts_start'
-        // }))
+        if (!res.ok) throw new Error('Failed to fetch TTS');
+
+        // Collect all audio chunks first
+        const chunks = [];
         const reader = res.body.getReader();
-        while(true) {
-            const {value, done} = await reader.read();
 
-            /*
-                Value is Uint8Array which is a binary data representation of audio file
-                We have to send the audio file (i.e value) over web socket so first encode it to base64 
-                Uint8Array does not have a .toString('base64') method — only Node.js Buffer does.
-             */
-            if(done) break;
-            const base64Val = Buffer.from(value).toString('base64');
-            ws.send(`tts_chunk: ${JSON.stringify(base64Val)}`)
+        while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            chunks.push(value);
         }
-        // ws.send(JSON.parse({
-        //     type : 'tts_end'
-        // }))
+
+        // Combine all chunks into a single Uint8Array
+        let totalLength = 0;
+        chunks.forEach(chunk => {
+            totalLength += chunk.length;
+        });
+
+        const combined = new Uint8Array(totalLength);
+        let offset = 0;
+        chunks.forEach(chunk => {
+            combined.set(chunk, offset);
+            offset += chunk.length;
+        });
+
+        // Convert the combined audio to base64
+        const base64Audio = Buffer.from(combined).toString('base64');
+
+        // Send the text payload first
+        ws.send(payload);
+
+        // Then send the combined audio
+        ws.send(`tts_chunk: ${JSON.stringify(base64Audio)}`);
+
     } catch (error) {
-        console.log(error);
+        console.error('TTS Error:', error);
     }
-}
+};
 
 
 
@@ -109,7 +123,6 @@ wss.on('connection', (ws) => {
                     }
                 })
             );
-            fs.unlinkSync(combinedFilePath);
 
             ws.audioDataArray = [];
             ws.tempFiles = [];
@@ -154,13 +167,14 @@ wss.on('connection', (ws) => {
                 const payload = `assistant: ${JSON.stringify(chunk)}\n\n`;
                 pendingText += chunk.message.content;
 
-                if (pendingText.length > 20 && pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!')) {
+                if (pendingText.length > 20 && (pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!'))) {
                     streamTTS(pendingText, ws);
                     pendingText = '';
                 }
-                ws.send(payload)
+                // ws.send(payload)
             }
             ws.send('stream_llm_end')
+            // fs.unlinkSync(combinedFilePath);
 
 
         } else if (data.type == "stream_audio") {

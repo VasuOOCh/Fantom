@@ -10,17 +10,17 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
   const handleDataAvailable = (event: Blob) => {
     if (event.size > 0) {
       console.log('blob', event);
-        //Blobs, representing raw binary data, are often unsuitable for direct transmission over WebSockets, which primarily handle text-based data. Converting a Blob to 
-        // Base64 addresses this limitation by encoding the binary data into a text format, ensuring compatibility with WebSocket's text-based communication channel.
+      //Blobs, representing raw binary data, are often unsuitable for direct transmission over WebSockets, which primarily handle text-based data. Converting a Blob to 
+      // Base64 addresses this limitation by encoding the binary data into a text format, ensuring compatibility with WebSocket's text-based communication channel.
       const reader = new FileReader();
       reader.onloadend = () => {
         const base64Data = reader.result;
         ws.current?.send(
-                JSON.stringify({
-                  type: "stream_audio",
-                  audio_data: base64Data,
-                })
-              );
+          JSON.stringify({
+            type: "stream_audio",
+            audio_data: base64Data,
+          })
+        );
       }
 
       reader.readAsDataURL(event)
@@ -35,6 +35,7 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
     }
   }
   const stopStreaming = async () => {
+
     try {
       if (recorder.current && ws.current) {
         recorder.current.stopRecording(() => {
@@ -43,12 +44,14 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
           }))
         });
       }
+      console.log("Stopping audio streaming to server");
     } catch (error) {
       console.log(error);
     }
   }
 
   const startStreaming = async () => {
+    console.log("Starting audio streaming to server");
     try {
 
       ws.current?.send(JSON.stringify({

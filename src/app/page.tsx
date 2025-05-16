@@ -8,6 +8,13 @@ import RecordRTC, { StereoAudioRecorder } from "recordrtc"
 URL() constructor is a client feature. Therefore, somehow NextJS was still trying to render this code on the server.
 This is the reason I we are dynamically importing the component with ssr = false
 */
+
+const dummyTopics = [
+  'javascript', 'git', 'java', 'coding'
+]
+
+const dummyLevel = "high"
+
 const StreamMicrophone = dynamic(() => import('../components/streammicrophone'), {
   ssr: false
 })
@@ -19,17 +26,14 @@ type message = {
 }
 
 export default function Home() {
-  const [started, setStarted] = useState<boolean>(false)
+  const [started, setStarted] = useState<boolean>(true)
   const ws = useRef<WebSocket | null>(null);
-  const mediaRecorder = useRef<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const [recording, setRecording] = useState(false);
-  let stream = useRef<null | MediaStream>(null);
   const [convo, setConvo] = useState<message[]>([]);
-  const streamingMessage = useRef(""); // Holds current assistant message
   const audioQueue = useRef<AudioBuffer[]>([]);
+  const messageQueue = useRef<string[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
+  const prevText = useRef<string>('');
 
 
   function base64ToAudioBuffer(base64: string): AudioBuffer {
@@ -60,7 +64,7 @@ export default function Home() {
 
     return audioBuffer;
   }
-  
+
 
   const playNextInQueue = () => {
     if (audioQueue.current.length === 0) {
@@ -70,12 +74,43 @@ export default function Home() {
 
     isPlayingRef.current = true;
     const buffer = audioQueue.current.shift()!;
+    const textChunk = messageQueue.current.shift() || ""; // Get corresponding text chunk
+    console.log("Text chunk is : ", textChunk, " -- Length is ", textChunk.length);
+
+    // Update the UI right before playing the audio
+    if (textChunk) {
+      setConvo((prev) => {
+        // If last message was from user or there are no messages, add new assistant message
+        if (prev.length === 0 || prev[prev.length - 1].role === "user") {
+          return [...prev, {
+            role: "assistant",
+            content: textChunk
+          }];
+        } else {
+          // The below code prevents duplication
+          const lastMessage = prev[prev.length - 1];
+          if (!lastMessage.content.includes(textChunk)) {
+            // Proper immutable update for appending
+            return prev.map((msg, index) => {
+              if (index === prev.length - 1 && msg.role === "assistant") {
+                // Only modify the last assistant message
+                return { ...msg, content: msg.content + textChunk };
+              }
+              return msg;
+            });
+          }
+          return prev; // No change if duplicate detected
+        }
+      });
+    }
+
     const source = audioContextRef.current!.createBufferSource();
     source.buffer = buffer;
-    source.playbackRate.value = 2
+    source.playbackRate.value = 2;
     source.connect(audioContextRef.current!.destination);
     source.onended = playNextInQueue;
     source.start();
+
   };
 
 
@@ -101,22 +136,8 @@ export default function Home() {
         if (line.startsWith('assistant: ')) {
           try {
             const data = JSON.parse(line.substring(11));
-            if (data.message && data.message.content) {
-              streamingMessage.current += data.message.content;
-              setConvo((prev) => {
-                let updated = [...prev];
-                if (updated[updated.length - 1].role == "user") {
-                  return [...prev, {
-                    role: "assistant",
-                    content: streamingMessage.current
-                  }]
-                } else {
-                  updated[updated.length - 1].content = streamingMessage.current;
-                  return updated;
-                }
-              })
-
-
+            if (data && prevText.current != data) {
+              messageQueue.current.push(data);
             }
           } catch (error) {
             console.error("Error parsing stream data:", error, line);
@@ -134,13 +155,11 @@ export default function Home() {
           ))
 
         } else if (line == "stream_llm_end") {
-          console.log("done receiving input");
-          streamingMessage.current = "";
+          console.log("done receiving text input");
         } else if (line.startsWith('tts_chunk: ')) {
-          console.log("received audio");
 
           const audioChunk = JSON.parse(line.substring(11));
-          console.log("audio chunk received");
+          // console.log("audio chunk received");
           const audioBuffer = base64ToAudioBuffer(audioChunk);
           audioQueue.current.push(audioBuffer);
           if (!isPlayingRef.current) {
@@ -153,7 +172,7 @@ export default function Home() {
     };
 
     if (started) {
-    setup().catch((err) => console.error("Setup failed:", err));
+      setup().catch((err) => console.error("Setup failed:", err));
     }
     audioContextRef.current = new (window.AudioContext)({ sampleRate: 16000 });
     audioContextRef.current.resume();

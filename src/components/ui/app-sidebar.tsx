@@ -7,7 +7,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 const interviewMenu = [
     {
         title: "Mock Interview",
-        url: "#",
+        url: "/interview",
         icon: Plus
     },
     {
@@ -26,7 +26,7 @@ const interviewMenu = [
 const toolsMenu = [
     {
         title: "Manage Resumes",
-        url: "#",
+        url: "/resume",
         icon: Files
     },
     {
@@ -58,7 +58,7 @@ const AppSidebar = () => {
                         <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton asChild>
-                                    <a href="#">
+                                    <a href="/dashboard">
                                         <GaugeIcon size={32} />
                                         <span>Dashboard</span>
                                     </a>
