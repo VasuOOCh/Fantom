@@ -5,7 +5,72 @@ import { Switch } from '@/components/ui/switch'
 import React, { useEffect, useRef, useState } from 'react'
 import { CircleCheck, Ban, Mic, MicOff } from 'lucide-react';
 import { Progress } from '@/components/ui/progress'
-import { group, trace } from 'console'
+import { Label } from '@/components/ui/label'
+import Image from 'next/image'
+import { Separator } from '@/components/ui/separator'
+import { technicalInterviewTopics } from '@/data'
+import { Toggle } from '@/components/ui/toggle'
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Button } from '@/components/ui/button'
+
+/* 
+Documentation and Articles : 
+
+const audioTracks = stream.getAudioTracks();
+
+if (audioTracks.length === 0) {
+    // No audio from microphone has been captured
+    return;
+}
+
+// We asked for the microphone so one track
+const track = audioTracks[0];
+if (track.muted) {
+    // Track is muted which means that the track is unable to provide media data.
+    // When muted, a track can't be unmuted.
+    // This track will no more provide data...
+}
+
+if (!track.enabled) {
+    // Track is temporaly disabled (muted for telephonist) which means that the track provides silence instead of real data.
+    // When disabled, a track can be enabled again.
+    // When in that case, user can't be heard until track is enabled again.
+}
+
+if (track.readyState === "ended") {
+    // Possibly a disconnection of the device
+    // When ended, a track can't be active again
+    // This track will no more provide data
+}
+*/
+
+const interviewers = [
+    {
+        name: "Alex Doe",
+        avatar: "/person1.jpg",
+        id: "p1"
+    },
+    {
+        name: "Ranjeet Sharma",
+        avatar: "/person3.jpg",
+        id: "p2"
+    },
+    {
+        name: "Priya Dubey",
+        avatar: "/person2.jpg",
+        id: "p3"
+    }, {
+        name: "Jane Mira",
+        avatar: "/person4.jpg",
+        id: "p4"
+    }
+]
+
+const resumes = ["resume1", "resume2", "resume3"]
 
 const Interview = () => {
     const [audioPermission, setAudioPermission] = useState<boolean>(false);
@@ -24,6 +89,77 @@ const Interview = () => {
     const [videoDevice, setVideDevices] = useState<any[]>([]);
     const [currentVideoDeviceId, setCurrentVideoDeviceId] = useState<undefined | string>(undefined);
 
+    // Defining the form fields : 
+    const [interviewer, setInterviewer] = useState('p1')
+    const [resumeId, setResumeId] = useState<string | undefined>();
+    const [topics, setTopics] = useState<string[]>([]);
+
+    const handleSubmit = () => {
+        try {
+            console.log(interviewer, resumeId, topics);
+            
+        } catch (error) {
+            console.log(error);
+            
+        }
+    }
+
+
+
+    const execAudioFunction = async () => {
+        const audioDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "audioinput");
+        audioDevices.forEach(device => {
+            setAudioDevices((prev) => ([...prev, {
+                name: device.label,
+                deviceId: device.deviceId,
+                groupId: device.groupId
+            }]))
+        });
+
+
+        if (audioDevices.length > 0) {
+
+            audioStream.current = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    deviceId: {
+                        exact: audioDevices[0].deviceId
+                    }
+                }
+            });
+
+            setAudioPermission(true);
+            setCurrentAudioDeviceId(audioDevices[0].deviceId);
+            // checkAudio(audioStream.current);
+        }
+    }
+
+    const execVideoFunction = async () => {
+        const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "videoinput");
+        videoDevices.forEach(device => {
+            setVideDevices((prev) => ([...prev, {
+                name: device.label,
+                deviceId: device.deviceId,
+                groupId: device.groupId
+            }]))
+        });
+
+        if (videoDevices.length > 0) {
+
+            videoStream.current = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    deviceId: {
+                        exact: videoDevices[0].deviceId
+                    }
+                }
+            });
+            if (videoRef.current) {
+                videoRef.current.srcObject = videoStream.current;
+            }
+            setVideoPermission(true);
+            setCurrentVideoDeviceId(videoDevices[0].deviceId);
+        }
+    }
+
     useEffect(() => {
         const audioPermission = async () => {
             try {
@@ -32,32 +168,7 @@ const Interview = () => {
 
                 if (audioPermission.state == "granted") {
                     console.log("Audio Permission already granted");
-                    const audioDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "audioinput");
-                    audioDevices.forEach(device => {
-                        setAudioDevices((prev) => ([...prev, {
-                            name: device.label,
-                            deviceId: device.deviceId,
-                            groupId: device.groupId
-                        }]))
-                    });
-
-
-                    if (audioDevices.length > 0) {
-
-                        audioStream.current = await navigator.mediaDevices.getUserMedia({
-                            audio: {
-                                deviceId: {
-                                    exact: audioDevices[0].deviceId
-                                }
-                            }
-                        });
-
-                        setAudioPermission(true);
-                        setCurrentAudioDeviceId(audioDevices[0].deviceId);
-                        checkAudio(audioStream.current);
-                    }
-
-
+                    execAudioFunction()
 
                 } else if (audioPermission.state == "denied") {
                     alert("Please give audio permissions from the setting tab and reload the page")
@@ -66,32 +177,7 @@ const Interview = () => {
                     // ask for permission (state == "prompt")
                     audioStream.current = await navigator.mediaDevices.getUserMedia({ audio: true });
                     if (audioStream.current.active) {
-                        const audioDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "audioinput");
-                        audioDevices.forEach(device => {
-                            setAudioDevices((prev) => ([...prev, {
-                                name: device.label,
-                                deviceId: device.deviceId,
-                                groupId: device.groupId
-                            }]))
-                        });
-
-
-                        if (audioDevices.length > 0) {
-
-                            audioStream.current = await navigator.mediaDevices.getUserMedia({
-                                audio: {
-                                    deviceId: {
-                                        exact: audioDevices[0].deviceId
-                                    }
-                                }
-                            });
-
-                            setAudioPermission(true);
-                            setCurrentAudioDeviceId(audioDevices[0].deviceId);
-                            checkAudio(audioStream.current);
-                        }
-
-
+                        execAudioFunction()
 
                     } else {
                         alert("Please give audio permissions from the setting tab and reload the page");
@@ -111,31 +197,7 @@ const Interview = () => {
 
             if (videoPermission.state == "granted") {
                 console.log("Video Permission already granted");
-                const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "videoinput");
-                videoDevices.forEach(device => {
-                    setVideDevices((prev) => ([...prev, {
-                        name: device.label,
-                        deviceId: device.deviceId,
-                        groupId: device.groupId
-                    }]))
-                });
-
-                if (videoDevices.length > 0) {
-
-                    videoStream.current = await navigator.mediaDevices.getUserMedia({
-                        video: {
-                            deviceId: {
-                                exact: videoDevices[0].deviceId
-                            }
-                        }
-                    });
-                    if (videoRef.current) {
-                        videoRef.current.srcObject = videoStream.current;
-                    }
-                    setVideoPermission(true);
-                    setCurrentVideoDeviceId(videoDevices[0].deviceId);
-                }
-
+                execVideoFunction()
             } else if (videoPermission.state == "denied") {
                 alert("Please give video permissions from the setting tab and reload the page")
                 setVideoPermission(false);
@@ -143,30 +205,7 @@ const Interview = () => {
                 // ask for permission (state == "prompt")
                 videoStream.current = await navigator.mediaDevices.getUserMedia({ video: true });
                 if (videoStream.current.active) {
-                    const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "videoinput");
-                    videoDevices.forEach(device => {
-                        setVideDevices((prev) => ([...prev, {
-                            name: device.label,
-                            deviceId: device.deviceId,
-                            groupId: device.groupId
-                        }]))
-                    });
-
-                    if (videoDevices.length > 0) {
-
-                        videoStream.current = await navigator.mediaDevices.getUserMedia({
-                            video: {
-                                deviceId: {
-                                    exact: videoDevices[0].deviceId
-                                }
-                            }
-                        });
-                        if (videoRef.current) {
-                            videoRef.current.srcObject = videoStream.current;
-                        }
-                        setVideoPermission(true);
-                        setCurrentVideoDeviceId(videoDevices[0].deviceId);
-                    }
+                    execVideoFunction()
                 } else {
                     alert("Please give video permissions from the setting tab and reload the page");
                     return;
@@ -191,7 +230,7 @@ const Interview = () => {
             const sourceNode = audioContext.createMediaStreamSource(audioStream);
             sourceNode.connect(analyzer);
 
-            if(currentInterval.current != undefined) {
+            if (currentInterval.current != undefined) {
                 window.clearInterval(currentInterval.current);
             }
 
@@ -307,9 +346,11 @@ const Interview = () => {
                         </CardDescription>
                     </CardHeader>
 
+                    <Separator />
+
                     <CardContent className='flex flex-col gap-4'>
                         <div className='flex flex-col gap-2'>
-                            <label>Microphone</label>
+                            <Label className='text-lg'>Microphone</Label>
                             {
                                 audioPermission ? (
                                     <p className='text-sm text-green-600 flex items-center gap-2'>
@@ -348,7 +389,7 @@ const Interview = () => {
                         </div>
 
                         <div className='flex flex-col gap-2'>
-                            <label>Camera</label>
+                            <Label className='text-lg'>Camera</Label>
                             {
                                 videoPermission ? (
                                     <p className='text-sm text-green-600 flex items-center gap-2'>
@@ -388,9 +429,90 @@ const Interview = () => {
                 </Card>
 
                 {/* Interview Settings */}
-                <Card className='w-[70%]'></Card>
+                <Card className='w-[70%]'>
+                    <CardHeader>
+                        <CardTitle className='text-2xl'>
+                            Interview Configuration
+                        </CardTitle>
+                        <CardDescription>
+                            Select the interview configuration from below options.
+                        </CardDescription>
+                    </CardHeader>
+
+                    <Separator />
+
+                    <CardContent>
+                        {/* Form */}
+                        <div className='flex flex-col gap-4'>
+
+                            <div className='flex flex-col gap-2'>
+                                <Label className='text-lg'>Select your interviewer</Label>
+                                <div className='flex gap-4'>
+                                    {
+                                        interviewers.map((data, index) => (
+                                            <div className={`flex flex-col gap-2 items-center`} key={index} onClick={() => setInterviewer(data.id)}>
+                                                <Image src={data.avatar} alt='avatar' height={100} width={100} className={`rounded-full object-cover avatar ${interviewer == data.id ? "ring-green-700 ring-4" : ""}`} />
+                                                <Label>{data.name}</Label>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+
+                            <div className='flex flex-col gap-2'>
+                                <Label className='text-lg'>Select your resume</Label>
+                                <div className='flex gap-4'>
+                                    {
+                                        resumes.map((resume, index) => (
+                                            <div key={index} className='flex flex-col gap-2 items-center'>
+                                                <div className='w-[150px] h-[100px] bg-accent rounded-2xl'></div>
+                                                <Label>{resume}</Label>
+                                            </div>
+                                        ))
+                                    }
+                                </div>
+                            </div>
+
+                            <div className='flex flex-col gap-2'>
+                                <Label className='text-lg'>Select topics to focus on</Label>
+                                {
+                                    Object.keys(technicalInterviewTopics).map((key, index) => (
+                                        <div key={index} className='flex gap-4'>
+                                            <Label>{key}</Label>
+                                            <div className='flex gap-2'>
+                                                {technicalInterviewTopics[key as keyof typeof technicalInterviewTopics].map((topic, index) => {
+                                                    const isSelected = topics.includes(topic);
+                                                    return (
+                                                        <Toggle
+                                                            key={index}
+                                                            pressed={isSelected}
+                                                            onClick={() =>
+                                                                setTopics(prev =>
+                                                                    isSelected
+                                                                        ? prev.filter(item => item !== topic)
+                                                                        : [...prev, topic]
+                                                                )
+                                                            }
+                                                            variant="outline"
+                                                            aria-label={`Toggle ${topic}`}
+                                                        >
+                                                            {topic}
+                                                        </Toggle>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))
+                                }
+                            </div>
+
+                            <Button onClick={handleSubmit}>Submit</Button>
+                        </div>
+
+                    </CardContent>
+                </Card>
             </div>
-        </div>
+        </div >
     )
 }
 
