@@ -1,9 +1,11 @@
+import { Mic } from "lucide-react";
 import Image from "next/image";
-import { Ref, RefObject, useRef } from "react";
+import { Dispatch, Ref, RefObject, SetStateAction, useRef } from "react";
 import RecordRTC, { StereoAudioRecorder } from "recordrtc";
 import { blob } from "stream/consumers";
+import { Button } from "./ui/button";
 
-const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
+const StreamMicrophone = ({ setActivity, ws }: { setActivity: Dispatch<SetStateAction<string>>, ws: RefObject<WebSocket | null> }) => {
 
   const recorder = useRef<RecordRTC | null>(null)
 
@@ -45,6 +47,7 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
         });
       }
       console.log("Stopping audio streaming to server");
+      setActivity("none");
     } catch (error) {
       console.log(error);
     }
@@ -52,6 +55,7 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
 
   const startStreaming = async () => {
     console.log("Starting audio streaming to server");
+    setActivity("human");
     try {
 
       ws.current?.send(JSON.stringify({
@@ -80,9 +84,10 @@ const StreamMicrophone = ({ ws }: { ws: RefObject<WebSocket | null> }) => {
 
   return (
     <>
-      <button onMouseUp={stopStreaming} onMouseDown={startStreaming} className="transition duration-200 ease-in-out w-[100px] h-[100px] relative active:scale-120">
-        <Image src={"/mic.png"} fill alt="mic" />
-      </button>
+     <Button onMouseUp={stopStreaming} onMouseDown={startStreaming} className="flex gap-2">
+       <Mic size={32} />
+       <span>Speak</span>
+     </Button>
     </>
   )
 }

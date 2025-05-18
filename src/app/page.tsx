@@ -1,8 +1,11 @@
 'use client'
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import RecordRTC, { StereoAudioRecorder } from "recordrtc"
+import { Bot, CircleUser, Terminal, Settings, PhoneOff, Timer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 /* 
 URL() constructor is a client feature. Therefore, somehow NextJS was still trying to render this code on the server.
@@ -33,8 +36,33 @@ export default function Home() {
   const messageQueue = useRef<string[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
-  const prevText = useRef<string>('');
+  const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  const [hours, setHours] = useState(0);
+  const [minutes, setMinutes] = useState(0);
+  const [seconds, setSeconds] = useState(0);
+
+  useEffect(() => {
+    if(scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  })
+
+  useEffect(() => {
+    if (seconds >= 60) {
+      setSeconds((prev) => prev % 60); // reset seconds
+      setMinutes((prev) => prev + 1);
+    }
+  }, [seconds]);
+
+  useEffect(() => {
+    if (minutes >= 60) {
+      setMinutes((prev) => prev % 60); // reset minutes
+      setHours((prev) => prev + 1);
+    }
+  }, [minutes]);
+
+  const [activity, setActivity] = useState<string>("none")
 
   function base64ToAudioBuffer(base64: string): AudioBuffer {
     const binaryString = atob(base64);
@@ -68,6 +96,7 @@ export default function Home() {
 
   const playNextInQueue = () => {
     if (audioQueue.current.length === 0) {
+      setActivity("none")
       isPlayingRef.current = false;
       return;
     }
@@ -135,6 +164,7 @@ export default function Home() {
     source.connect(audioContextRef.current!.destination);
     source.onended = playNextInQueue;
     source.start();
+    setActivity("ai");
 
   };
 
@@ -161,7 +191,7 @@ export default function Home() {
         if (line.startsWith('assistant: ')) {
           try {
             const data = JSON.parse(line.substring(11));
-            if (data && prevText.current != data) {
+            if (data) {
               messageQueue.current.push(data);
             }
           } catch (error) {
@@ -201,8 +231,15 @@ export default function Home() {
     }
     audioContextRef.current = new (window.AudioContext)({ sampleRate: 16000 });
     audioContextRef.current.resume();
+
+    // Timer function
+    // const interval = setInterval(() => {
+    //   setSeconds(prev => prev + 1)
+    // }, 1000);
+
     return () => {
       ws.current?.close();
+      // window.clearInterval(interval)
     };
   }, [started]);
 
@@ -211,47 +248,82 @@ export default function Home() {
       {/* Main interface */}
       <div className="flex gap-4 m-8 w-full p-8 items-center">
 
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 items-center h-full justify-around">
           {/* For AI */}
-          <div className="w-[300px] h-[300px] bg-blue-300">
-            AI
+          <div className="w-[300px] h-[300px] relative">
+            <Image src={"/person1.jpg"} className="rounded-3xl" fill alt="AI image" />
+            <span className="px-2 py-1 absolute bottom-2 left-2 bg-[rgba(0,0,0,0.5)] rounded-2xl">AI interviewer</span>
           </div>
 
           {/* For user */}
-          <div className="w-[300px] h-[300px] bg-red-300 flex items-center justify-center">
-            <StreamMicrophone ws={ws} />
+          <div className="w-[300px] h-[300px] bg-red-300 rounded-3xl flex items-center justify-center relative">
+            {/* <Image src={"/person1.jpg"} className="rounded-3xl" fill alt="AI image" /> */}
+            <span className="px-2 py-1 absolute bottom-2 left-2 bg-[rgba(0,0,0,0.5)] rounded-2xl">Candidate</span>
+          </div>
 
+          <div className="flex gap-4">
+            <Button variant={"secondary"}>
+              <Settings />
+            </Button>
+            <Button className="flex items-center gap-2" variant={"destructive"}>
+              <PhoneOff />
+              <span>End Interview</span>
+            </Button>
           </div>
         </div>
 
         {/* Conversation */}
-        <div className="ring-1 flex-1 overflow-y-scroll h-[700px]">
-          {
-            convo.map((convo, index) => (
-              <div key={index} className="p-4 border-b border-gray-300">
-                {/* User Message */}
-                {
-                  convo.role == "user" ? (
-                    <div className="text-right">
-                      <p className="inline-block bg-red-100 text-black px-4 py-2 rounded-lg max-w-[70%]">
+        <Card className="flex-1 h-[800px] flex flex-col">
+          <CardHeader className="flex items-center justify-between">
+            <CardTitle className="text-lg ">Transcript & Chat</CardTitle>
+
+            <div className="flex gap-2 items-center">
+              <Timer />
+              <span>Time elapsed &nbsp; &nbsp;  {hours} : {minutes} : {seconds}</span>
+            </div>
+          </CardHeader>
+          <Separator />
+          <CardContent ref={scrollRef} className="flex flex-col flex-1 overflow-y-scroll">
+            {convo.map((convo, index) => (
+              <div
+                key={index}
+                className={`flex ${convo.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div className={`p-4 flex gap-4 items-center max-w-[80%]`}>
+                  {convo.role === "user" ? (
+                    <>
+                      <p className="bg-red-100 text-black px-4 py-2 rounded-lg">
                         {convo.content}
                       </p>
-                    </div>
+                      <CircleUser className="shrink-0" />
+                    </>
                   ) : (
-                    <div className="text-left mt-2">
-                      <p className="inline-block bg-blue-100 text-black px-4 py-2 rounded-lg max-w-[70%]">
+                    <>
+                      <Bot className="shrink-0" />
+                      <p className="bg-blue-100 text-black px-4 py-2 rounded-lg">
                         {convo.content}
                       </p>
-                    </div>
-                  )
-                }
-
-
+                    </>
+                  )}
+                </div>
               </div>
-            ))
-          }
+            ))}
+          </CardContent>
 
-        </div>
+          <Separator />
+
+          <CardFooter className="flex">
+            <div className="flex gap-2 flex-1">
+              <Terminal />
+              <span>{
+                activity == "human" ? "Human is speaking..." : activity == "ai" ? "AI is speaking..." : "No activity detected"
+              }</span>
+            </div>
+            <div>
+              <StreamMicrophone setActivity={setActivity} ws={ws} />
+            </div>
+          </CardFooter>
+        </Card>
       </div>
 
     </div>
