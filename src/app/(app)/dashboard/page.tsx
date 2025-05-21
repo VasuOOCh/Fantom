@@ -3,10 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Progress } from '@/components/ui/progress';
-import { FileText, ChartNoAxesColumn, CircleCheckBig, Users, CalendarDays, ArrowUpRight,TrendingUp } from 'lucide-react';
+import { auth } from '@/lib/firebase/auth';
+import { RootState } from '@/lib/redux/store';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { FileText, ChartNoAxesColumn, CircleCheckBig, Users, CalendarDays, ArrowUpRight, TrendingUp } from 'lucide-react';
 import Image from 'next/image';
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useSelector } from 'react-redux';
 import { CartesianGrid, LabelList, Line, LineChart, XAxis } from 'recharts';
+import dbConnect from '@/lib/db/dbConnect';
 
 const cards = [
     {
@@ -87,6 +92,9 @@ const chartConfig = {
 } satisfies ChartConfig
 
 const Dashboard = () => {
+    const { user } = useSelector((state: RootState) => state.auth)
+    if (!user) return null; // Safety Check 
+    
     return (
         <div className='p-8 flex flex-col gap-4'>
             {/* Heading */}
@@ -192,7 +200,7 @@ const Dashboard = () => {
 
                     <Card>
                         <CardHeader>
-                             <CardTitle className='text-xl'>Rank - 3402</CardTitle>
+                            <CardTitle className='text-xl'>Rank - 3402</CardTitle>
                             <CardDescription>January - June 2024</CardDescription>
                         </CardHeader>
                         <CardContent>
@@ -240,7 +248,7 @@ const Dashboard = () => {
                                 </LineChart>
                             </ChartContainer>
                         </CardContent>
-                
+
                     </Card>
 
                 </div>

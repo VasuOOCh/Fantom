@@ -7,8 +7,8 @@ import { CircleCheck, Ban, Mic, MicOff } from 'lucide-react';
 import { Progress } from '@/components/ui/progress'
 import { Label } from './ui/label'
 
-const AudioVIdeoCheck = ({deviceIdsAndSetters} : {deviceIdsAndSetters : any}) => {
-    const {currentAudioDeviceId, setCurrentAudioDeviceId,currentVideoDeviceId, setCurrentVideoDeviceId, isVideoOff, setIsVideoOff} = deviceIdsAndSetters;
+const AudioVIdeoCheck = ({ deviceIdsAndSetters }: { deviceIdsAndSetters: any }) => {
+    const { currentAudioDeviceId, setCurrentAudioDeviceId, currentVideoDeviceId, setCurrentVideoDeviceId, isVideoOff, setIsVideoOff } = deviceIdsAndSetters;
     const currentInterval = useRef<any>(undefined);
     const [isMuted, setIsMuted] = useState(false);
     const [audioPermission, setAudioPermission] = useState<boolean>(false);
@@ -19,62 +19,55 @@ const AudioVIdeoCheck = ({deviceIdsAndSetters} : {deviceIdsAndSetters : any}) =>
     const [videoPermission, setVideoPermission] = useState<boolean>(false);
     const videoStream = useRef<MediaStream | null>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const [videoDevice, setVideDevices] = useState<any[]>([]);
+    const [videoDevice, setVideoDevices] = useState<any[]>([]);
 
 
     const execAudioFunction = async () => {
-        const audioDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "audioinput");
-        audioDevices.forEach(device => {
-            setAudioDevices((prev) => ([...prev, {
-                name: device.label,
+        const audioDevices = (await navigator.mediaDevices.enumerateDevices())
+            .filter((device) => device.kind === "audioinput")
+            .map(device => ({
+                name: device.label || "Default", // fallback label
                 deviceId: device.deviceId,
                 groupId: device.groupId
-            }]))
-        });
+            }));
 
+        setAudioDevices(audioDevices);
 
         if (audioDevices.length > 0) {
-
             audioStream.current = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    deviceId: {
-                        exact: audioDevices[0].deviceId
-                    }
-                }
+                audio: { deviceId: { exact: audioDevices[0].deviceId } }
             });
-
             setAudioPermission(true);
             setCurrentAudioDeviceId(audioDevices[0].deviceId);
-            // checkAudio(audioStream.current);
         }
-    }
+    };
 
     const execVideoFunction = async () => {
-        const videoDevices = (await navigator.mediaDevices.enumerateDevices()).filter((device) => device.kind == "videoinput");
-        videoDevices.forEach(device => {
-            setVideDevices((prev) => ([...prev, {
-                name: device.label,
+        const videoDevices = (await navigator.mediaDevices.enumerateDevices())
+            .filter((device) => device.kind === "videoinput")
+            .map(device => ({
+                name: device.label || "Default", // fallback label
                 deviceId: device.deviceId,
                 groupId: device.groupId
-            }]))
-        });
+            }));
+
+        setVideoDevices(videoDevices);
 
         if (videoDevices.length > 0) {
-
             videoStream.current = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    deviceId: {
-                        exact: videoDevices[0].deviceId
-                    }
-                }
+                video: { deviceId: { exact: videoDevices[0].deviceId } }
             });
+
             if (videoRef.current) {
                 videoRef.current.srcObject = videoStream.current;
             }
+             // since isVideoOff is true initially, we are diabling the video tracks for the first time
+            videoStream.current.getVideoTracks().forEach((track) => track.enabled = false);
+
             setVideoPermission(true);
             setCurrentVideoDeviceId(videoDevices[0].deviceId);
         }
-    }
+    };
 
     useEffect(() => {
         const audioPermission = async () => {
@@ -172,6 +165,7 @@ const AudioVIdeoCheck = ({deviceIdsAndSetters} : {deviceIdsAndSetters : any}) =>
 
     useEffect(() => {
         try {
+
             const muteUnmute = () => {
                 if (isMuted) {
                     audioStream.current?.getAudioTracks().forEach((track) => track.enabled = false);
@@ -186,6 +180,7 @@ const AudioVIdeoCheck = ({deviceIdsAndSetters} : {deviceIdsAndSetters : any}) =>
             console.log(error);
         }
     }, [isMuted, audioStream.current]);
+
     useEffect(() => {
         try {
             const videoOffOn = () => {

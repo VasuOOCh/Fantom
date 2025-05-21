@@ -4,10 +4,15 @@ import React, { useEffect, useRef, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import Image from 'next/image'
 import { Separator } from '@/components/ui/separator'
-import { technicalInterviewTopics } from '@/data'
+import { technicalInterviewTopics } from '@/lib/data'
 import { Toggle } from '@/components/ui/toggle'
 import { Button } from '@/components/ui/button'
 import AudioVIdeoCheck from '@/components/audioVideoCheck'
+import axios from 'axios'
+import { interviewers } from '@/lib/data'
+import { Interviewer } from '@/lib/types/type'
+import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
 /* 
 Documentation and Articles : 
@@ -40,50 +45,38 @@ if (track.readyState === "ended") {
 }
 */
 
-const interviewers = [
-    {
-        name: "Alex Doe",
-        avatar: "/person1.jpg",
-        id: "p1"
-    },
-    {
-        name: "Ranjeet Sharma",
-        avatar: "/person3.jpg",
-        id: "p2"
-    },
-    {
-        name: "Priya Dubey",
-        avatar: "/person2.jpg",
-        id: "p3"
-    }, {
-        name: "Jane Mira",
-        avatar: "/person4.jpg",
-        id: "p4"
-    }
-]
-
 const resumes = ["resume1", "resume2", "resume3"]
 
-const Interview = () => {
-    // const navigation = useNavigation
 
+const Interview = () => {
+    const router = useRouter();
     const [currentAudioDeviceId, setCurrentAudioDeviceId] = useState<undefined | string>(undefined);
     const [currentVideoDeviceId, setCurrentVideoDeviceId] = useState<undefined | string>(undefined);
     const [isVideoOff, setIsVideoOff] = useState(true);
+    const [loading, setLoading] = useState<boolean>(false);
 
     // Defining the form fields : 
-    const [interviewer, setInterviewer] = useState('p1')
+    const [interviewer, setInterviewer] = useState<number>(1);
     const [resumeId, setResumeId] = useState<string | undefined>();
     const [topics, setTopics] = useState<string[]>([]);
 
-    const handleSubmit = () => {
+    const handleSubmit = async () => {
+        setLoading(true)
         try {
-            console.log(interviewer, resumeId, topics);
-            console.log(currentAudioDeviceId, currentVideoDeviceId, isVideoOff);
+            // Save the audio and VideoSettings in a slice
+            const { data } = await axios.post('http://localhost:3000/api/interview', {
+                interviewer: interviewers[interviewer], resumeId, topics,
+            })
+
+            if (data.interviewId) {
+                return router.push('/interview/' + data.interviewId);
+            }
+
 
         } catch (error) {
             console.log(error);
-
+        } finally {
+            setLoading(false);
         }
     }
 
@@ -176,7 +169,7 @@ const Interview = () => {
                                 }
                             </div>
 
-                            <Button onClick={handleSubmit} className='font-bold'>Start Interview</Button>
+                             <Button onClick={handleSubmit} disabled={loading}>{loading ? (<><Loader2 className="animate-spin" /> <span>Please wait</span></>) : "Start interview"}</Button>
                         </div>
 
                     </CardContent>

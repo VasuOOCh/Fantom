@@ -1,8 +1,14 @@
-import React from 'react'
-import { Plus, GaugeIcon, Youtube, GalleryVerticalEnd, Files, Wrench, ChevronUp,UserRound, Settings, LogOut} from 'lucide-react';
+'use client'
+import React, { useEffect } from 'react'
+import { Plus, GaugeIcon, Youtube, GalleryVerticalEnd, Files, Wrench, ChevronUp, UserRound, Settings, LogOut } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from './sidebar'
 import { ModeToggle } from './theme-toggle';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/lib/redux/store';
+import Image from 'next/image';
+import useAuthentication from '@/hooks/useAuthentication';
+import { useRouter } from 'next/navigation';
 
 const interviewMenu = [
     {
@@ -37,6 +43,11 @@ const toolsMenu = [
 ]
 
 const AppSidebar = () => {
+    // const router = useRouter();
+    const user = useSelector((state: RootState) => state.auth.user);
+    const { signOutCall } = useAuthentication()
+    if (!user) return null;
+
     return (
         <Sidebar>
             <SidebarHeader className='flex items-center flex-row justify-between'>
@@ -77,7 +88,7 @@ const AppSidebar = () => {
                                     <SidebarMenuItem key={index}>
                                         <SidebarMenuButton asChild>
                                             <a href={item.url} className='flex gap-4 items-center'>
-                                                <item.icon/>
+                                                <item.icon />
                                                 <span>{item.title}</span>
                                             </a>
                                         </SidebarMenuButton>
@@ -110,12 +121,13 @@ const AppSidebar = () => {
             </SidebarContent>
 
             <SidebarFooter>
-                <SidebarMenu>
+                <SidebarMenu className='pb-8'>
                     <SidebarMenuItem>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <SidebarMenuButton>
-                                    <span>Vasu Choudhari</span>
+                                <SidebarMenuButton className='flex items-center'>
+                                    <Image src={user.avatar || '/avatar.jpg'} width={30} height={30} className='object-cover rounded-full' alt='user img' />
+                                    <span>{user.name || "DEFAULT_USER"}</span>
                                     <ChevronUp className="ml-auto" />
                                 </SidebarMenuButton>
                             </DropdownMenuTrigger>
@@ -129,7 +141,7 @@ const AppSidebar = () => {
                                     <Settings />
                                     <span>Setting</span>
                                 </DropdownMenuItem>
-                                <DropdownMenuItem>
+                                <DropdownMenuItem onClick={signOutCall}>
                                     <LogOut />
                                     <span>Logout</span>
                                 </DropdownMenuItem>

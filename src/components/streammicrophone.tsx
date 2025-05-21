@@ -60,7 +60,6 @@ const StreamMicrophone = ({ setActivity, ws }: { setActivity: Dispatch<SetStateA
 
       ws.current?.send(JSON.stringify({
         type: "start_audio",
-        id: "123"
       }))
 
       navigator.mediaDevices.getUserMedia({ audio: true })
@@ -84,7 +83,7 @@ const StreamMicrophone = ({ setActivity, ws }: { setActivity: Dispatch<SetStateA
 
   return (
     <>
-     <Button onMouseUp={stopStreaming} onMouseDown={startStreaming} className="flex gap-2">
+     <Button onMouseUp={stopStreaming} onMouseDown={startStreaming} className="flex gap-2 cursor-pointer">
        <Mic size={32} />
        <span>Speak</span>
      </Button>

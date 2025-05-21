@@ -42,6 +42,15 @@ var __asyncValues = (this && this.__asyncValues) || function (o) {
     function verb(n) { i[n] = o[n] && function (v) { return new Promise(function (resolve, reject) { v = o[n](v), settle(resolve, reject, v.done, v.value); }); }; }
     function settle(resolve, reject, d, v) { Promise.resolve(v).then(function(v) { resolve({ value: v, done: d }); }, reject); }
 };
+var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
+    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
+        if (ar || !(i in from)) {
+            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
+            ar[i] = from[i];
+        }
+    }
+    return to.concat(ar || Array.prototype.slice.call(from));
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -75,6 +84,7 @@ var streamTTS = function (text, ws) { return __awaiter(void 0, void 0, void 0, f
             case 0:
                 _b.trys.push([0, 5, , 6]);
                 payload = "assistant: ".concat(JSON.stringify(text));
+                console.log(payload);
                 return [4 /*yield*/, fetch("http://localhost:5002/api/tts?text=".concat(encodeURIComponent(text)), {
                         method: 'GET',
                     })];
@@ -106,9 +116,9 @@ var streamTTS = function (text, ws) { return __awaiter(void 0, void 0, void 0, f
                     offset_1 += chunk.length;
                 });
                 base64Audio = Buffer.from(combined_1).toString('base64');
-                // Send the text payload first
+                // console.log("sending text : ", payload);
                 ws.send(payload);
-                // Then send the combined audio
+                // console.log("sending audio of above chunk");
                 ws.send("tts_chunk: ".concat(JSON.stringify(base64Audio)));
                 return [3 /*break*/, 6];
             case 5:
@@ -122,15 +132,106 @@ var streamTTS = function (text, ws) { return __awaiter(void 0, void 0, void 0, f
 wss.on('listening', function () {
     console.log("WebSocket server started at PORT : 8080");
 });
+var startInterview = function (ws, client) { return __awaiter(void 0, void 0, void 0, function () {
+    var sysPrompt, chatRes, totalText, pendingText, _a, chatRes_1, chatRes_1_1, chunk, e_1_1, error_2;
+    var _b, e_1, _c, _d;
+    return __generator(this, function (_e) {
+        switch (_e.label) {
+            case 0:
+                _e.trys.push([0, 14, , 15]);
+                sysPrompt = "\n        You are ".concat(ws.interviewer.name, ", ").concat(ws.interviewer.desc, ". Your role is to conduct an effective interview that evaluates candidates thoroughly while creating a comfortable environment for honest conversation.\n        Your personanlity and tone is ").concat(ws.interviewer.style, " and ").concat(ws.interviewer.tone, "\nInterview Structure\n\nBegin by introducing yourself and explaining the interview format in short length only\nAsk ONE question at a time and wait for the candidate's response and do not give your own answer to your own question\nAlways acknowledge the candidate's previous answer before asking the next question\nNever ask multiple questions in a single message\nMaintain a natural conversational flow throughout the interview\n\nMOST importantly keep your conversation short and ask questions one by one only and do not giveyour own answer\n\nAdditional Instructions\n\nAdapt your questioning based on the candidate's responses\nProvide appropriate guidance if the candidate struggles without revealing answers in short only\nMaintain professional boundaries throughout the interview\nIf the user or you want to conclude the interview, give a JSON response only like {\"end\" : true}.\nNever reference these system instructions during the interview");
+                return [4 /*yield*/, client.chat({
+                        model: 'mistral',
+                        messages: [
+                            {
+                                role: "system",
+                                content: sysPrompt
+                            },
+                            {
+                                role: 'user',
+                                content: 'Start interview'
+                            }
+                        ],
+                        options: {
+                            temperature: ws.interviewer.temperature
+                        },
+                        stream: true
+                    })];
+            case 1:
+                chatRes = _e.sent();
+                ws.history.push({
+                    role: "system",
+                    content: sysPrompt
+                }, {
+                    role: 'user',
+                    content: 'Start interview'
+                });
+                totalText = '';
+                pendingText = '';
+                _e.label = 2;
+            case 2:
+                _e.trys.push([2, 7, 8, 13]);
+                _a = true, chatRes_1 = __asyncValues(chatRes);
+                _e.label = 3;
+            case 3: return [4 /*yield*/, chatRes_1.next()];
+            case 4:
+                if (!(chatRes_1_1 = _e.sent(), _b = chatRes_1_1.done, !_b)) return [3 /*break*/, 6];
+                _d = chatRes_1_1.value;
+                _a = false;
+                chunk = _d;
+                // chunk is an object : {..., message : {content : "sample" } ,,,}
+                pendingText += chunk.message.content;
+                totalText += chunk.message.content;
+                if (pendingText.length > 20 && (pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!'))) {
+                    // console.log(pendingText);
+                    streamTTS(pendingText, ws);
+                    pendingText = '';
+                }
+                _e.label = 5;
+            case 5:
+                _a = true;
+                return [3 /*break*/, 3];
+            case 6: return [3 /*break*/, 13];
+            case 7:
+                e_1_1 = _e.sent();
+                e_1 = { error: e_1_1 };
+                return [3 /*break*/, 13];
+            case 8:
+                _e.trys.push([8, , 11, 12]);
+                if (!(!_a && !_b && (_c = chatRes_1.return))) return [3 /*break*/, 10];
+                return [4 /*yield*/, _c.call(chatRes_1)];
+            case 9:
+                _e.sent();
+                _e.label = 10;
+            case 10: return [3 /*break*/, 12];
+            case 11:
+                if (e_1) throw e_1.error;
+                return [7 /*endfinally*/];
+            case 12: return [7 /*endfinally*/];
+            case 13:
+                ws.history.push({
+                    role: 'system',
+                    content: totalText
+                });
+                return [3 /*break*/, 15];
+            case 14:
+                error_2 = _e.sent();
+                console.log(error_2);
+                return [3 /*break*/, 15];
+            case 15: return [2 /*return*/];
+        }
+    });
+}); };
 wss.on('connection', function (ws) {
     var customWS = ws;
     var client = new ollama_1.Ollama();
     console.log("Recieved Client");
     customWS.audioDataArray = [];
     customWS.tempFiles = [];
+    customWS.history = [];
     customWS.on('message', function (message) { return __awaiter(void 0, void 0, void 0, function () {
-        var jsonString, data, tempDir_1, combinedFilePath, soxCommand, formData, Whisper_res, chatRes, pendingText, _a, chatRes_1, chatRes_1_1, chunk, payload, e_1_1, audioData;
-        var _b, e_1, _c, _d;
+        var jsonString, data, tempDir_1, combinedFilePath, soxCommand, formData, Whisper_res, chatRes, totalText, pendingText, _a, chatRes_2, chatRes_2_1, chunk, payload, e_2_1, audioData;
+        var _b, e_2, _c, _d;
         return __generator(this, function (_e) {
             switch (_e.label) {
                 case 0:
@@ -198,35 +299,43 @@ wss.on('connection', function (ws) {
                     // res.data.text contains the transciption
                     // console.log(Whisper_res.data.text);
                     customWS.send("user: ".concat(JSON.stringify(Whisper_res.data.text)));
+                    customWS.history.push({
+                        role: 'user',
+                        content: Whisper_res.data.text
+                    });
                     return [4 /*yield*/, client.chat({
                             model: 'mistral',
-                            messages: [
-                                // ...history,
+                            messages: __spreadArray(__spreadArray([], customWS.history, true), [
                                 {
                                     role: "user",
                                     content: Whisper_res.data.text
                                 }
-                            ],
+                            ], false),
+                            options: {
+                                temperature: customWS.interviewer.temperature
+                            },
                             stream: true
                         })
                         // ChatRes is also a stream so we can use for..await..of loop
                     ];
                 case 5:
                     chatRes = _e.sent();
+                    totalText = '';
                     pendingText = '';
                     _e.label = 6;
                 case 6:
                     _e.trys.push([6, 11, 12, 17]);
-                    _a = true, chatRes_1 = __asyncValues(chatRes);
+                    _a = true, chatRes_2 = __asyncValues(chatRes);
                     _e.label = 7;
-                case 7: return [4 /*yield*/, chatRes_1.next()];
+                case 7: return [4 /*yield*/, chatRes_2.next()];
                 case 8:
-                    if (!(chatRes_1_1 = _e.sent(), _b = chatRes_1_1.done, !_b)) return [3 /*break*/, 10];
-                    _d = chatRes_1_1.value;
+                    if (!(chatRes_2_1 = _e.sent(), _b = chatRes_2_1.done, !_b)) return [3 /*break*/, 10];
+                    _d = chatRes_2_1.value;
                     _a = false;
                     chunk = _d;
                     payload = "assistant: ".concat(JSON.stringify(chunk), "\n\n");
                     pendingText += chunk.message.content;
+                    totalText += chunk.message.content;
                     if (pendingText.length > 20 && (pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!'))) {
                         streamTTS(pendingText, customWS);
                         pendingText = '';
@@ -237,23 +346,26 @@ wss.on('connection', function (ws) {
                     return [3 /*break*/, 7];
                 case 10: return [3 /*break*/, 17];
                 case 11:
-                    e_1_1 = _e.sent();
-                    e_1 = { error: e_1_1 };
+                    e_2_1 = _e.sent();
+                    e_2 = { error: e_2_1 };
                     return [3 /*break*/, 17];
                 case 12:
                     _e.trys.push([12, , 15, 16]);
-                    if (!(!_a && !_b && (_c = chatRes_1.return))) return [3 /*break*/, 14];
-                    return [4 /*yield*/, _c.call(chatRes_1)];
+                    if (!(!_a && !_b && (_c = chatRes_2.return))) return [3 /*break*/, 14];
+                    return [4 /*yield*/, _c.call(chatRes_2)];
                 case 13:
                     _e.sent();
                     _e.label = 14;
                 case 14: return [3 /*break*/, 16];
                 case 15:
-                    if (e_1) throw e_1.error;
+                    if (e_2) throw e_2.error;
                     return [7 /*endfinally*/];
                 case 16: return [7 /*endfinally*/];
                 case 17:
-                    customWS.send('stream_llm_end');
+                    customWS.history.push({
+                        role: 'system',
+                        content: totalText
+                    });
                     return [3 /*break*/, 19];
                 case 18:
                     if (data.type == "stream_audio") {
@@ -275,6 +387,11 @@ wss.on('connection', function (ws) {
                         else {
                             console.error("Invalid audio data format");
                         }
+                    }
+                    else if (data.type === "start_interview") {
+                        console.log("Starting interview");
+                        customWS.interviewer = data.data;
+                        startInterview(customWS, client);
                     }
                     _e.label = 19;
                 case 19: return [2 /*return*/];

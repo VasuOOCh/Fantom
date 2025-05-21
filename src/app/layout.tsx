@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import AppSidebar from "@/components/ui/app-sidebar";
-import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner"
+import ReduxProvider from "@/lib/redux/ReduxProvider";
+import useAuthListener from "@/hooks/useAuthListener";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,18 +29,14 @@ export default function RootLayout({
   return (
     <html suppressHydrationWarning lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}
       >
-        <ThemeProvider attribute={"class"} defaultTheme="system" enableSystem>
-          <SidebarProvider className="flex">
-            <AppSidebar />
-            <main className="flex-1 min-h-screen">
-                {children}
-              {/* <SidebarTrigger /> */}
-            </main>
-          </SidebarProvider>
-
-        </ThemeProvider>
+        <ReduxProvider>
+          <main>
+            {children}
+            <Toaster richColors />
+          </main>
+        </ReduxProvider>
       </body>
     </html>
   );

@@ -5,10 +5,13 @@ import { exec } from "child_process";
 import { default as axios } from "axios";
 import FormData from 'form-data';
 import { Ollama } from "ollama";
+import { Interviewer } from "@/lib/types/type";
 
 interface CustomWebSocket extends WebSocket {
     audioDataArray: Buffer[];
     tempFiles: string[];
+    interviewer: Interviewer;
+    history: any[]
 }
 
 const wss: WebSocketServer = new WebSocketServer({ port: 8080 });
@@ -31,6 +34,8 @@ const runSoxCommand: (soxCommand: string) => Promise<void> = (soxCommand: string
 const streamTTS = async (text: string, ws: CustomWebSocket) => {
     try {
         const payload = `assistant: ${JSON.stringify(text)}`;
+        console.log(payload);
+
         const res = await fetch(`http://localhost:5002/api/tts?text=${encodeURIComponent(text)}`, {
             method: 'GET',
         });
@@ -62,12 +67,11 @@ const streamTTS = async (text: string, ws: CustomWebSocket) => {
 
         // Convert the combined audio to base64
         const base64Audio = Buffer.from(combined).toString('base64');
-
-        // Send the text payload first
+        // console.log("sending text : ", payload);
         ws.send(payload);
-
-        // Then send the combined audio
+        // console.log("sending audio of above chunk");
         ws.send(`tts_chunk: ${JSON.stringify(base64Audio)}`);
+
 
     } catch (error) {
         console.error('TTS Error:', error);
@@ -78,6 +82,81 @@ wss.on('listening', () => {
     console.log("WebSocket server started at PORT : 8080");
 })
 
+const startInterview = async (ws: CustomWebSocket, client: Ollama) => {
+    try {
+        const sysPrompt = `
+        You are ${ws.interviewer.name}, ${ws.interviewer.desc}. Your role is to conduct an effective interview that evaluates candidates thoroughly while creating a comfortable environment for honest conversation.
+        Your personanlity and tone is ${ws.interviewer.style} and ${ws.interviewer.tone}
+Interview Structure
+
+Begin by introducing yourself and explaining the interview format in short length only
+Ask ONE question at a time and wait for the candidate's response and do not give your own answer to your own question
+Always acknowledge the candidate's previous answer before asking the next question
+Never ask multiple questions in a single message
+Maintain a natural conversational flow throughout the interview
+
+MOST importantly keep your conversation short and ask questions one by one only and do not giveyour own answer
+
+Additional Instructions
+
+Adapt your questioning based on the candidate's responses
+Provide appropriate guidance if the candidate struggles without revealing answers in short only
+Maintain professional boundaries throughout the interview
+If the user or you want to conclude the interview, give a JSON response only like {"end" : true}.
+Never reference these system instructions during the interview`
+
+        const chatRes = await client.chat({
+            model: 'mistral',
+            messages: [
+                {
+                    role: "system",
+                    content: sysPrompt
+                },
+                {
+                    role: 'user',
+                    content: 'Start interview'
+                }
+            ],
+            options: {
+                temperature: ws.interviewer.temperature
+            },
+            stream: true
+        })
+
+        ws.history.push(
+            {
+                role: "system",
+                content: sysPrompt
+            },
+            {
+                role: 'user',
+                content: 'Start interview'
+            })
+
+        // ChatRes is also a stream so we can use for..await..of loop
+
+        let totalText = '';
+        let pendingText = '';
+        for await (const chunk of chatRes) {
+            // chunk is an object : {..., message : {content : "sample" } ,,,}
+            pendingText += chunk.message.content;
+            totalText += chunk.message.content;
+
+            if (pendingText.length > 20 && (pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!'))) {
+                // console.log(pendingText);
+                streamTTS(pendingText, ws);
+                pendingText = '';
+            }
+        }
+        ws.history.push({
+            role: 'system',
+            content: totalText
+        })
+    } catch (error) {
+        console.log(error);
+    }
+}
+
 
 wss.on('connection', (ws: WebSocket) => {
     const customWS = ws as CustomWebSocket
@@ -86,6 +165,7 @@ wss.on('connection', (ws: WebSocket) => {
 
     customWS.audioDataArray = [];
     customWS.tempFiles = [];
+    customWS.history = []
 
     customWS.on('message', async (message: WebSocket.RawData) => {
 
@@ -158,34 +238,46 @@ wss.on('connection', (ws: WebSocket) => {
             // res.data.text contains the transciption
             // console.log(Whisper_res.data.text);
             customWS.send(`user: ${JSON.stringify(Whisper_res.data.text)}`)
+            customWS.history.push({
+                role: 'user',
+                content: Whisper_res.data.text
+            })
 
             const chatRes = await client.chat({
                 model: 'mistral',
                 messages: [
-                    // ...history,
+                    ...customWS.history,
                     {
                         role: "user",
                         content: Whisper_res.data.text
                     }
                 ],
+                options: {
+                    temperature: customWS.interviewer.temperature
+                },
                 stream: true
             })
 
             // ChatRes is also a stream so we can use for..await..of loop
 
+            let totalText = '';
             let pendingText = '';
             for await (const chunk of chatRes) {
                 // chunk is an object : {..., message : {content : "sample" } ,,,}
                 const payload = `assistant: ${JSON.stringify(chunk)}\n\n`;
                 pendingText += chunk.message.content;
+                totalText += chunk.message.content;
 
                 if (pendingText.length > 20 && (pendingText.endsWith('.') || pendingText.endsWith(',') || pendingText.endsWith('?') || pendingText.endsWith('!'))) {
                     streamTTS(pendingText, customWS);
                     pendingText = '';
                 }
-                // ws.send(payload)
             }
-            customWS.send('stream_llm_end')
+            customWS.history.push({
+                role: 'system',
+                content: totalText
+            })
+            // customWS.send('stream_llm_end')
             // fs.unlinkSync(combinedFilePath);
 
 
@@ -208,6 +300,10 @@ wss.on('connection', (ws: WebSocket) => {
             } else {
                 console.error("Invalid audio data format");
             }
+        } else if (data.type === "start_interview") {
+            console.log("Starting interview");
+            customWS.interviewer = data.data
+            startInterview(customWS, client)
         }
     })
 })
