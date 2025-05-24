@@ -20,15 +20,18 @@ const AuthLayout = ({ children }: { children: React.ReactNode }) => {
 
   */
   
-  useEffect(() => {
-    if (user != null) {
-      return router.push('/dashboard')
-    } else {
-      setIsAuthChecked(true)
-    }
-  }, [user, router])
+  // useEffect(() => {
+  //   if (user != null) {
+  //     return router.push('/dashboard')
+  //   } else {
+  //     setIsAuthChecked(true)
+  //   }
+  // }, [user, router])
 
-  if (!isAuthChecked) return "Checking Auth status";
+  // if (!isAuthChecked) return "Checking Auth status";
+
+
+  //  ********************** USING MIDDLEWARE.TS INSTEAD *********************************
   return (
     <>
       {children}

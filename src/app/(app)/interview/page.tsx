@@ -13,6 +13,9 @@ import { interviewers } from '@/lib/data'
 import { Interviewer } from '@/lib/types/type'
 import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
+import { useDispatch } from 'react-redux'
+import { clearInterview } from '@/lib/redux/InterviewSlice'
+import { toast } from 'sonner'
 
 /* 
 Documentation and Articles : 
@@ -49,6 +52,7 @@ const resumes = ["resume1", "resume2", "resume3"]
 
 
 const Interview = () => {
+    const dispatch = useDispatch();
     const router = useRouter();
     const [currentAudioDeviceId, setCurrentAudioDeviceId] = useState<undefined | string>(undefined);
     const [currentVideoDeviceId, setCurrentVideoDeviceId] = useState<undefined | string>(undefined);
@@ -67,8 +71,13 @@ const Interview = () => {
             const { data } = await axios.post('http://localhost:3000/api/interview', {
                 interviewer: interviewers[interviewer], resumeId, topics,
             })
+            toast.success('New interview formed !', {
+                description: 'Redirecting to interview'
+            })
 
             if (data.interviewId) {
+                // clear the prev Interview if exists : 
+                dispatch(clearInterview());
                 return router.push('/interview/' + data.interviewId);
             }
 
@@ -169,7 +178,7 @@ const Interview = () => {
                                 }
                             </div>
 
-                             <Button onClick={handleSubmit} disabled={loading}>{loading ? (<><Loader2 className="animate-spin" /> <span>Please wait</span></>) : "Start interview"}</Button>
+                            <Button onClick={handleSubmit} disabled={loading}>{loading ? (<><Loader2 className="animate-spin" /> <span>Please wait</span></>) : "Start interview"}</Button>
                         </div>
 
                     </CardContent>

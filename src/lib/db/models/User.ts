@@ -21,7 +21,13 @@ const UserSchema = new mongoose.Schema({
     },
     provider : {
         type : String
-    }
+    },
+    interviews : [
+        {
+            type : mongoose.Types.ObjectId,
+            ref : "Interview"
+        }
+    ]
 })
 
 export default mongoose.models.User || mongoose.model('User', UserSchema)

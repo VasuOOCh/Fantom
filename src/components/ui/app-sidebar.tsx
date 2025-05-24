@@ -45,7 +45,7 @@ const toolsMenu = [
 const AppSidebar = () => {
     // const router = useRouter();
     const user = useSelector((state: RootState) => state.auth.user);
-    const { signOutCall } = useAuthentication()
+    const { signOutCall, loading } = useAuthentication()
     if (!user) return null;
 
     return (
@@ -143,7 +143,7 @@ const AppSidebar = () => {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={signOutCall}>
                                     <LogOut />
-                                    <span>Logout</span>
+                                    <span>{loading ? "Logging out..." : "Logout"}</span>
                                 </DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>

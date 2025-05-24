@@ -1,6 +1,7 @@
 import { combineReducers, configureStore } from '@reduxjs/toolkit'
 import userReducer from './UserSlice'
-import loadingReducer from './loadingSlice'
+// import loadingReducer from './loadingSlice'
+import interviewReducer from './InterviewSlice'
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 import { TypedUseSelectorHook, useDispatch, useSelector } from 'react-redux';
@@ -26,6 +27,7 @@ const persistConfig = {
 };
 const rootReducer = combineReducers({
     auth: userReducer,
+    interview : interviewReducer
     // loading : loadingReducer
 })
 const persistedReducer = persistReducer(persistConfig, rootReducer);

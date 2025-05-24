@@ -236,7 +236,15 @@ wss.on('connection', (ws: WebSocket) => {
 
             const Whisper_res = await axios.post('http://localhost:8000/transcribe', formData)
             // res.data.text contains the transciption
-            // console.log(Whisper_res.data.text);
+            
+                // [1]   error: 'Whisper transcription failed',
+                // [1]   details: 'CUDA error: unspecified launch failure\n' +
+                // [1]     'CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect.\n' +
+                // [1]     'For debugging consider passing CUDA_LAUNCH_BLOCKING=1\n' +
+                // [1]     'Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.\n'
+                // [1] 
+            
+            // console.log(Whisper_res.data);
             customWS.send(`user: ${JSON.stringify(Whisper_res.data.text)}`)
             customWS.history.push({
                 role: 'user',
@@ -287,10 +295,10 @@ wss.on('connection', (ws: WebSocket) => {
                 const audioData = Buffer.from(data.audio_data.split(",")[1], "base64");
                 /* 
                 Buffer is save in RAM and used only in NodeJS
-
+ 
                 Blob is not used here it is HTML specific and is used to represent images/video 
                 (Blob can also be created in NodejS but not famous though !)
-
+ 
                 It is direct binary representation of data (eg .wav audio file)
                 You can save it as fs.writeFileSync('audio.wav', audioData); 
                 OR you can send it as Response

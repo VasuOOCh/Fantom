@@ -6,10 +6,15 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { Bot, CircleUser, Terminal, Settings, PhoneOff, Timer, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { usePathname } from 'next/navigation'
 import axios from "axios";
 import { Interviewer } from "@/lib/types/type";
+import { insertAssistantConvo, insertUserConvo, appendAssitantConvo, startInterview, clearInterview, updateInterview } from "@/lib/redux/InterviewSlice";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { RootState } from "@/lib/redux/store";
+import VideoCard from "@/components/VideoCard";
+import AudioVIdeoConfig from "@/components/AudioVIdeoConfig";
 /* 
 URL() constructor is a client feature. Therefore, somehow NextJS was still trying to render this code on the server.
 This is the reason I we are dynamically importing the component with ssr = false
@@ -32,10 +37,11 @@ type message = {
 }
 
 export default function Home() {
-  const pathname = usePathname()
+  const pathname = usePathname();
+  const dispatch = useDispatch();
   const [isValid, setIsValid] = useState<undefined | boolean>(undefined);
+  const convo = useSelector((state: RootState) => state.interview.convo)
   const ws = useRef<WebSocket | null>(null);
-  const [convo, setConvo] = useState<message[]>([]);
   const audioQueue = useRef<AudioBuffer[]>([]);
   const messageQueue = useRef<string[]>([]);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -43,21 +49,53 @@ export default function Home() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [interviewerData, setInterviewerData] = useState<null | Interviewer>(null)
 
+  const interviewId = useRef<string | null>(null);
+
   const [activity, setActivity] = useState<string>("none")
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(0);
   const [seconds, setSeconds] = useState(0);
 
-  const [started, setStarted] = useState(false);
+  const live = useSelector((state: RootState) => state.interview.live);
+  const [isEnded, setIsEnded] = useState<boolean | undefined>(undefined);
+  const convoRef = useRef<message[]>([]);
+
+
+  useEffect(() => {
+    convoRef.current = convo;
+  }, [convo]);
+
+  const endInterview = async () => {
+    try {
+      const res = await axios.put('http://localhost:3000/api/interview', {
+        interviewId,
+        convo,
+        duration: [hours, minutes, seconds],
+      })
+      console.log("Interview ended successfully");
+      
+      // data updated
+      dispatch(clearInterview());
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   // check validity for the interview at page load
   useEffect(() => {
     const checkValidity = async () => {
       const pathArr = pathname.split('/');
-      const interviewId = pathArr[pathArr.length - 1]
+      interviewId.current = pathArr[pathArr.length - 1];
 
       try {
-        const res = await axios.get('http://localhost:3000/api/interview?interviewId=' + interviewId);
+        const res = await axios.get('http://localhost:3000/api/interview?interviewId=' + interviewId.current);
+        if (res.data.isEnded) {
+          setIsEnded(true);
+        } else {
+          if (!live) {
+            dispatch(updateInterview({ interviewer: res.data.interviewer, interviewId: interviewId.current }));
+          }
+        }
         setInterviewerData(res.data.interviewer);
         setIsValid(res.status === 200);
       } catch (error) {
@@ -121,7 +159,6 @@ export default function Home() {
 
 
   const playNextInQueue = () => {
-
     try {
       if (audioQueue.current.length === 0) {
         setActivity("none")
@@ -132,60 +169,22 @@ export default function Home() {
       isPlayingRef.current = true;
       const buffer = audioQueue.current.shift()!;
       const textChunk = messageQueue.current.shift() || ""; // Get corresponding text chunk
-      console.log("Text chunk is : ", textChunk, " -- Length is ", textChunk.length);
-      console.log("Buffer chunk is : ", buffer.duration);
+      // console.log("Text chunk is : ", textChunk, " -- Length is ", textChunk.length);
+      // console.log("Buffer chunk is : ", buffer.duration);
 
 
       // Update the UI right before playing the audio
       if (textChunk) {
-        setConvo((prev) => {
-          // If last message was from user or there are no messages, add new assistant message
-          if (prev.length === 0 || prev[prev.length - 1].role === "user") {
-            return [...prev, {
-              role: "assistant",
-              content: textChunk
-            }];
-          } else {
-            // The below code prevents duplication
-            const lastMessage = prev[prev.length - 1];
-            if (!lastMessage.content.includes(textChunk)) {
-              /*
-                ----------- What's happening below ---------
-                Source : GPT 4-o written in own language by VasuOOCh
-  
-                if we do this :-
-                updated = [...prev]
-                updated[updated.length - 1] += textChunk
-                return updated
-  
-                This peace of code doesnt allow react to re render the componenet !
-                Why ????
-  
-                Before re rendering react checks : 
-                1) The returned reference was changed or not
-                --> Since we are creating a new array updated, so this check is passed
-                2) Checks element wise reference
-                --> We have changed the value of the last object in that array, but the refernce to last object is not changed
-                --> So react thinks that all the element have the same previous ref of 'prev'
-  
-                ##### This above comparision is called react-Shallow comparision
-  
-                In Our new code we are : (Below code)
-                1) Changing the whole returned reference (Which was also the above case)
-                2) Change the ref of last element by creating a new object rathan than just updating the existing ones
-                
-               */
-              return prev.map((msg, index) => {
-                if (index === prev.length - 1 && msg.role === "assistant") {
-                  // Only modify the last assistant message
-                  return { ...msg, content: msg.content + textChunk };
-                }
-                return msg;
-              });
-            }
-            return prev; // No change if duplicate detected
+        // console.log(convoRef.current.length);
+
+        if (convoRef.current.length == 0 || convoRef.current[convoRef.current.length - 1].role == "user") {
+          dispatch(insertAssistantConvo(textChunk));
+        } else {
+          const lastMessage = convoRef.current[convoRef.current.length - 1];
+          if (!lastMessage.content.includes(textChunk)) {
+            dispatch(appendAssitantConvo(textChunk));
           }
-        });
+        }
       }
 
       const source = audioContextRef.current!.createBufferSource();
@@ -200,10 +199,8 @@ export default function Home() {
 
     } catch (error) {
       console.log(error);
-
     }
   };
-
 
 
   useEffect(() => {
@@ -211,8 +208,9 @@ export default function Home() {
     if (typeof window === 'undefined') return;
 
     const setup = async () => {
+
       audioContextRef.current = new (window.AudioContext)({ sampleRate: 16000 });
-      await audioContextRef.current.resume();
+
       ws.current = new WebSocket("ws://localhost:8080");
 
       ws.current.onopen = () => {
@@ -246,13 +244,7 @@ export default function Home() {
         else if (line.startsWith('user: ')) {
           const userData = JSON.parse(line.substring(6));
           console.log(userData);
-
-          setConvo((prev) => (
-            [...prev, {
-              role: "user",
-              content: userData
-            }]
-          ))
+          dispatch(insertUserConvo(userData));
 
         } else if (line == "stream_llm_end") {
           console.log("done receiving text input");
@@ -271,23 +263,22 @@ export default function Home() {
 
     };
 
-    if (isValid && started) {
-      // setTimeout(() => {
+    if (isValid && live) {
       setup()
-      // }, 3000)
     }
 
     // Timer function
-    // const interval = setInterval(() => {
-    //   setSeconds(prev => prev + 1)
-    // }, 1000);
+    const interval = setInterval(() => {
+      setSeconds(prev => prev + 1)
+    }, 1000);
 
     return () => {
       ws.current?.close();
-      // window.clearInterval(interval)
+      window.clearInterval(interval)
     };
-  }, [isValid, started]);
+  }, [isValid, live]);
 
+  // Render if interview in not valid
   if (isValid == undefined) {
     return (
       <div className="h-screen w-full flex items-center justify-center">
@@ -301,13 +292,29 @@ export default function Home() {
     return ("No interview found")
   }
 
-  if (!started) {
+  // Now interview is valid
+  // Render if interview is ended , show the summary ==>
+
+  if (isEnded) {
     return (
-      <div className="h-screen w-full flex items-center justify-center">
-          <Button onClick={() => setStarted(true)}>Begin Interview</Button>
+      <div>
+        Interview ended
       </div>
     )
   }
+
+  // Interview is valid, and not ended & if not started =>
+  if (!live) {
+    return (
+      <div className="h-screen w-full flex items-center justify-center">
+        <Button onClick={() => {
+          dispatch(startInterview());
+        }}>Begin Interview</Button>
+      </div>
+    )
+  }
+
+  // After interview starts =>
 
   return (
     <div className="flex flex-col ite!user || ms-center h-full">
@@ -323,18 +330,36 @@ export default function Home() {
 
           {/* For user */}
           <div className="w-[300px] h-[300px] bg-red-300 rounded-3xl flex items-center justify-center relative">
-            {/* <Image src={"/person1.jpg"} className="rounded-3xl" fill alt="AI image" /> */}
+            <VideoCard />
+
             <span className="px-2 py-1 absolute bottom-2 left-2 bg-[rgba(0,0,0,0.5)] rounded-2xl">Candidate</span>
           </div>
 
           <div className="flex gap-4">
-            <Button variant={"secondary"}>
-              <Settings />
-            </Button>
-            <Button className="flex items-center gap-2" variant={"destructive"}>
-              <PhoneOff />
-              <span>End Interview</span>
-            </Button>
+            
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild className="cursor-pointer" >
+                <Button className="flex items-center gap-2" variant={"destructive"}>
+                  <PhoneOff />
+                  <span>End Interview</span>
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action will end the current interview
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={endInterview}>Continue</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+
           </div>
         </div>
 
@@ -386,7 +411,7 @@ export default function Home() {
               }</span>
             </div>
             <div>
-              <StreamMicrophone setActivity={setActivity} ws={ws} />
+              <StreamMicrophone audioContextRef={audioContextRef} setActivity={setActivity} ws={ws} />
             </div>
           </CardFooter>
         </Card>

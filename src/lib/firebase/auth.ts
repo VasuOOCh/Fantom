@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth,GoogleAuthProvider } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, inMemoryPersistence, setPersistence } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyD_Ya40MIhqG3b8UxQ31sZYV9DuF-3_vmM",
@@ -14,7 +14,17 @@ const firebaseConfig = {
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+// Initialize auth persistence
+export const initAuthPersistence = async () => {
+  try {
+    await setPersistence(auth, inMemoryPersistence);
+    console.log("Auth persistence set to in-memory");
+  } catch (error) {
+    console.error("Failed to set auth persistence:", error);
+  }
+};
 export const provider = new GoogleAuthProvider();
+
 
 
 // ***************************** AUTH Has been inmplmented following : https://medium.com/@daboigbae/learn-react-authentication-with-firebase-83c12a08f0f5

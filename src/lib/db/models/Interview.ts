@@ -49,6 +49,16 @@ const InterviewSchema = new mongoose.Schema({
     isEnded : {
         type :Boolean,
         default : false
+    },
+    convo : [
+        {
+            role : String,
+            content : String
+        }
+    ],
+    candidate : {
+        type : String,
+        ref : "User"
     }
 }, {
     timestamps: true

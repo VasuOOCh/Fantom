@@ -7,3 +7,8 @@ export interface Interviewer {
     temperature: number,
     id : number
 }
+
+export type message = {
+  role: 'user' | 'assistant',
+  content: string
+}

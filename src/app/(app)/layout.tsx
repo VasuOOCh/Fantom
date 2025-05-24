@@ -24,20 +24,22 @@ export default function RootLayout({
 
   */
 
-    const router = useRouter();
-    const { user } = useSelector((state: RootState) => state.auth);
-    const [isAuthChecked, setIsAuthChecked] = useState(false)
+    // const router = useRouter();
+    // const { user } = useSelector((state: RootState) => state.auth);
+    // const [isAuthChecked, setIsAuthChecked] = useState(false)
 
-    useEffect(() => {
-        if (user == null) {
-            return router.push('/signin')
-        } else {
-            setIsAuthChecked(true)
-        }
-    }, [user, router])
+    // useEffect(() => {
+    //     if (user == null) {
+    //         return router.push('/signin')
+    //     } else {
+    //         setIsAuthChecked(true)
+    //     }
+    // }, [user, router])
 
-    if (!isAuthChecked) return "Checking auth status"
+    // if (!isAuthChecked) return "Checking auth status"
 
+
+    // ********************** WE HAVE IMPLEMENTED SERVER BASED AUTH USING MIDDLEWARE.TS FILE **********************************
     return (
 
         <ThemeProvider attribute={"class"} defaultTheme="system" enableSystem>

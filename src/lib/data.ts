@@ -94,6 +94,7 @@ export const interviewers : Interviewer[] = [
     desc: "Acts like a mentor, offering hints but expects candidates to explain their reasoning deeply.",
     style: "Mentor",
     tone: "mentor-like",
-    temperature: 0.65,id : 5
+    temperature: 0.65,
+    id : 5
   }
 ];

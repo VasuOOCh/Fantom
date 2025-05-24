@@ -5,7 +5,7 @@ import RecordRTC, { StereoAudioRecorder } from "recordrtc";
 import { blob } from "stream/consumers";
 import { Button } from "./ui/button";
 
-const StreamMicrophone = ({ setActivity, ws }: { setActivity: Dispatch<SetStateAction<string>>, ws: RefObject<WebSocket | null> }) => {
+const StreamMicrophone = ({ setActivity, ws,audioContextRef }: { setActivity: Dispatch<SetStateAction<string>>, ws: RefObject<WebSocket | null>, audioContextRef : RefObject<AudioContext | null> }) => {
 
   const recorder = useRef<RecordRTC | null>(null)
 
@@ -54,6 +54,7 @@ const StreamMicrophone = ({ setActivity, ws }: { setActivity: Dispatch<SetStateA
   }
 
   const startStreaming = async () => {
+    await audioContextRef.current!.resume();
     console.log("Starting audio streaming to server");
     setActivity("human");
     try {
